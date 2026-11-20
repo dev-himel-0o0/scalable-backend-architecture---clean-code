@@ -12,9 +12,9 @@ A REST API built with **Express 5**, **TypeScript**, and **PostgreSQL**, created
 
 ## Features
 
-- Full CRUD REST API for users
-- Feature modules under `src/modules/<domain>/` with route → controller → service layers
-- `users` table created automatically on startup
+- Full CRUD REST API for users and profile creation
+- Feature modules under `src/modules/<domain>/` with route → controller → service → repository layers
+- `users` and `profile` tables created automatically on startup
 - Connection pooling with parameterized queries (no SQL string interpolation)
 - Centralized environment configuration
 - Strict TypeScript with a fast typecheck via the native `tsc`
@@ -29,23 +29,25 @@ HTTP request
   → src/app.ts                     middleware + feature router mounting
   → modules/<domain>/<domain>.route.ts        URL → controller mapping
   → modules/<domain>/<domain>.controller.ts   HTTP status, envelopes, error handling
-  → modules/<domain>/<domain>.service.ts      data access (SQL through the shared pool)
+  → modules/<domain>/<domain>.service.ts      business logic
+  → modules/<domain>/<domain>.repository.ts   SQL through the shared pool
   → src/db/index.ts                shared pg Pool + schema bootstrap
 ```
 
 - **`src/server.ts`** — process entry point. Starts the database bootstrap and the HTTP listener.
 - **`src/app.ts`** — builds the Express app, registers middleware, and mounts feature routers. It knows nothing about SQL.
 - **`src/config/index.ts`** — loads `.env` and exposes the typed config object.
-- **`src/db/index.ts`** — creates the shared `pg` `Pool` and defines `initNeonDB()`, which creates the `users` table at startup.
-- **`src/modules/user/`** — the user feature. Routes wire URLs to controllers, controllers own HTTP concerns, the service owns queries, and the interface holds payload types.
+- **`src/db/index.ts`** — creates the shared `pg` `Pool` and defines `initNeonDB()`, which creates the `users` and `profile` tables at startup.
+- **`src/modules/user/`** — the user feature. Routes wire URLs to controllers, controllers own HTTP concerns, the service owns business logic, the repository owns queries, and the interface holds payload types.
+- **`src/modules/profile/`** — the profile feature. Its service checks whether the user exists before asking the repository to insert the profile.
 
-The project currently stops at the service layer: services run SQL directly against the pool. A repository layer can be extracted later without changing routes or controllers.
+Services depend on their module's repository, and only repositories import the shared pool. Routes and controllers never contain SQL.
 
 ### Adding a module
 
-1. Create `src/modules/<domain>/` with `<domain>.route.ts`, `<domain>.controller.ts`, `<domain>.service.ts`, and `<domain>.interface.ts`.
-2. Export the router from the route file and mount it in `src/app.ts` with `app.use("/api/v1/<domain>", ...)`.
-3. Import the shared pool from `src/db` in the service; keep SQL parameterized.
+1. Create `src/modules/<domain>/` with `<domain>.route.ts`, `<domain>.controller.ts`, `<domain>.service.ts`, `<domain>.repository.ts`, and `<domain>.interface.ts`.
+2. Export the router from the route file and mount it in `src/app.ts` with ``app.use(`/${config.apiVersion}/<domain>`, ...)``.
+3. Import the shared pool from `src/db` in the repository; keep SQL parameterized and out of services and controllers.
 
 ## Getting Started
 
@@ -76,12 +78,13 @@ The API is available at **http://localhost:3000**.
 | Variable              | Required | Description                                                      |
 | --------------------- | -------- | ---------------------------------------------------------------- |
 | `PORT`                | Yes      | Port the HTTP server listens on                                  |
+| `API_VERSION`         | Yes      | API path prefix without a leading slash, e.g. `api/v1`           |
 | `DATABASE_URL`        | Yes      | PostgreSQL connection string used by the app                     |
 | `DATABASE_URL_POOLED` | No       | Reserved for a pooled connection string; not read by the app yet |
 
 ## API Endpoints
 
-Base URL for the user resource: `http://localhost:3000/api/v1`
+Base URL for all API resources: `http://localhost:3000/api/v1`
 
 | Method   | Endpoint       | Description                                  |
 | -------- | -------------- | -------------------------------------------- |
@@ -91,8 +94,9 @@ Base URL for the user resource: `http://localhost:3000/api/v1`
 | `GET`    | `/user/:id`    | Get a user by ID                             |
 | `PUT`    | `/user/:id`    | Update a user                                |
 | `DELETE` | `/user/:id`    | Delete a user                                |
+| `POST`   | `/profile`     | Create a profile for an existing user        |
 
-> The health check lives at the root (`http://localhost:3000/`), outside `/api/v1`. User endpoints use the singular `/user`.
+> The health check lives at the root (`http://localhost:3000/`), outside `/api/v1`. Resource paths are singular (`/user`, `/profile`). `POST /profile` returns `404` with `{ "success": false, "message": "User not exists!" }` when `user_id` does not exist.
 
 ### Example
 
@@ -140,13 +144,20 @@ src/
 ├── config/
 │   └── index.ts                   # Loads .env and exposes typed config
 ├── db/
-│   └── index.ts                   # Shared pg Pool + users table bootstrap
+│   └── index.ts                   # Shared pg Pool + schema bootstrap
 └── modules/
-    └── user/
-        ├── user.route.ts          # URL → controller mapping
-        ├── user.controller.ts     # HTTP handlers, status codes, response envelopes
-        ├── user.service.ts        # SQL queries through the pool
-        └── user.interface.ts      # IUser payload types
+    ├── user/
+    │   ├── user.route.ts          # URL → controller mapping
+    │   ├── user.controller.ts     # HTTP handlers, status codes, response envelopes
+    │   ├── user.service.ts        # Business logic
+    │   ├── user.repository.ts     # SQL queries through the pool
+    │   └── user.interface.ts      # IUser payload types
+    └── profile/
+        ├── profile.route.ts       # URL → controller mapping
+        ├── profile.controller.ts  # HTTP handlers, status codes, response envelopes
+        ├── profile.service.ts     # Business logic
+        ├── profile.repository.ts  # SQL queries through the pool
+        └── profile.interface.ts   # IProfile payload types
 ```
 
 Each domain is self-contained. Cross-module code lives only in `config` and `db`; modules do not import each other.
@@ -162,7 +173,7 @@ Each domain is self-contained. Cross-module code lives only in `config` and `db`
 ## Roadmap
 
 - [x] Split the server into app wiring, routes, controllers, and services
-- [ ] Extract SQL from services into a repository layer
+- [x] Extract SQL from services into a repository layer
 - [ ] Add request validation and centralized error handling
 - [ ] Fix handlers that send a 404 and then a second response
 - [ ] Hash passwords before storing them

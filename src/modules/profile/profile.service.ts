@@ -1,24 +1,12 @@
-import { pool } from "../../db";
 import type { IProfile } from "./profile.interface";
+import { profileRepository } from "./profile.repository";
 
 const createProfile = async (payload: IProfile) => {
-  const { user_id, bio, address, phone, gender } = payload;
-  const user = await pool.query(`SELECT * FROM users WHERE id=$1`, [user_id]);
+  const exists = await profileRepository.userExists(payload.user_id);
 
-  if (!user.rowCount) return null;
+  if (!exists) return null;
 
-  return await pool.query(
-    `
-      INSERT INTO profile (
-        user_id,
-        bio,
-        address,
-        phone,
-        gender
-      ) VALUES ($1, $2, $3, $4, $5) RETURNING *
-    `,
-    [user_id, bio, address, phone, gender],
-  );
+  return await profileRepository.create(payload);
 };
 
 export const profileService = { createProfile };

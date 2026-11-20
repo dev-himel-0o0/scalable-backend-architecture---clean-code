@@ -2,8 +2,8 @@
 
 ## Repo shape
 - Single-package ESM Express 5 + TypeScript API using a feature-module (modular monolith) layout. `src/server.ts` is the entry point, `src/app.ts` wires middleware and mounts routers, config is in `src/config`, and the shared `pg` pool is in `src/db`.
-- Each domain lives in `src/modules/<domain>/` as `<domain>.route.ts` (URL → handler), `<domain>.controller.ts` (HTTP + envelopes), `<domain>.service.ts` (SQL), and `<domain>.interface.ts` (payload types). Only the `user` module exists.
-- There is no repository layer: services run SQL directly against the pool. No tests, lint, formatter, build script, CI, or Docker.
+- Each domain lives in `src/modules/<domain>/` as `<domain>.route.ts` (URL → handler), `<domain>.controller.ts` (HTTP + envelopes), `<domain>.service.ts` (business logic), `<domain>.repository.ts` (SQL), and `<domain>.interface.ts` (payload types). The `user` and `profile` modules exist.
+- Repositories are the only layer that imports the shared `pool`; services call repositories. No tests, lint, formatter, build script, CI, or Docker.
 - Cross-module code lives only in `src/config` and `src/db`; modules do not import each other. There are no path aliases or barrel files.
 
 ## Commands
@@ -13,31 +13,33 @@
 
 ## Environment
 - `.env` is gitignored and holds real credentials; copy `.env.example` to create it.
-- `src/config/index.ts` reads only `PORT` and `DATABASE_URL`; `DATABASE_URL_POOLED` exists in env files but is unused. Config is a default-exported object with no runtime validation, so values may be `undefined`.
+- `src/config/index.ts` reads `PORT`, `API_VERSION`, and `DATABASE_URL`; `DATABASE_URL_POOLED` exists in env files but is unused. `API_VERSION` is the path prefix without a leading slash (e.g. `api/v1`); `app.ts` adds the slash. Config is a default-exported object with no runtime validation, so values may be `undefined`.
 - Env is loaded via dotenv from `process.cwd()/.env` at import time: run from the repo root and restart `npm run dev` after editing `.env`.
 - A missing/unreachable DB is non-fatal: startup logs the failure and HTTP still serves.
 
 ## Architecture
-- Request flow: `app.ts` → `<domain>.route.ts` → `<domain>.controller.ts` → `<domain>.service.ts` → shared `pool`. Routes never contain SQL; controllers never query directly.
-- Route files create an `express.Router()`, bind paths to controller methods, and export a named router (`userRoute`). `app.ts` mounts it with `app.use("/api/v1/user", userRoute)`.
+- Request flow: `app.ts` → `<domain>.route.ts` → `<domain>.controller.ts` → `<domain>.service.ts` → `<domain>.repository.ts` → shared `pool`. Routes never contain SQL; controllers never query directly; services never contain SQL.
+- Route files create an `express.Router()`, bind paths to controller methods, and export a named router (`userRoute`, `profileRoute`). `app.ts` mounts them with ``app.use(`/${config.apiVersion}/<domain>`, ...)``.
 - Controllers are inline `async (req, res)` + `try/catch`; they read `req.body`/`req.params` directly (no validation), send the JSON envelope, and never call `next`. There is no centralized error middleware.
-- Services are singleton objects (`userService`) that take plain arguments and return raw `pg` `QueryResult`s. Keep SQL parameterized (`$1`, `$2`, ...).
-- To add a module: create the four files under `src/modules/<domain>/`, export the router, and mount it in `app.ts`. Keep relative, extensionless imports.
+- Services are singleton objects (`userService`, `profileService`) that take plain arguments, apply business rules, and delegate persistence to their module's repository. Repositories are singleton objects (`userRepository`, `profileRepository`) that run parameterized SQL (`$1`, `$2`, ...) and return raw `pg` `QueryResult`s.
+- `profileService` returns `null` when `user_id` does not exist; `profileController` maps that to a 404. It uses `profileRepository.userExists()` rather than importing the user module.
+- To add a module: create the five files under `src/modules/<domain>/`, export the router, and mount it in `app.ts`. Keep relative, extensionless imports.
 
 ## Database
 - `src/db/index.ts` creates the shared `Pool` and exports `initNeonDB()`.
-- `initNeonDB()` is called without `await` in `server.ts`, so HTTP can accept requests before `CREATE TABLE IF NOT EXISTS users` finishes. Success logs `Database connected!`; failure logs `Database <error>`.
+- `initNeonDB()` is called without `await` in `server.ts`, so HTTP can accept requests before `CREATE TABLE IF NOT EXISTS users` and `profile` finish. Success logs `Database connected!`; failure logs `Database <error>`.
 - There are no migrations: changing the schema means editing that SQL and applying it to existing databases by hand.
 - `users` columns: `id, name, age, email` (unique), `password, is_active, created_at, updated_at`. Passwords are stored in plain text; no hashing.
-- Queries: `INSERT ... RETURNING *`, `SELECT *`, `UPDATE` with `COALESCE` and `updated_at = NOW()`, `DELETE` without `RETURNING`. Controllers read `result.rows[0]` and `result.rowCount`.
+- `profile` columns: `id, user_id` (unique FK to `users.id`, `ON DELETE CASCADE`), `bio, address, phone, gender, created_at, updated_at`.
+- Repository queries: `INSERT ... RETURNING *`, `SELECT *`, `UPDATE` with `COALESCE` and `updated_at = NOW()`, `DELETE` without `RETURNING`. Controllers read `result.rows[0]` and `result.rowCount`.
 
 ## API conventions
-- Routes: `GET /` (plain text `Home`, outside `/api/v1`), `POST|GET /api/v1/user`, `GET|PUT|DELETE /api/v1/user/:id`. The resource path is singular `/user`, not `/users`.
+- Routes: `GET /` (plain text `Home`, outside `/api/v1`), `POST|GET /api/v1/user`, `GET|PUT|DELETE /api/v1/user/:id`, and `POST /api/v1/profile`. Resource paths are singular (`/user`, `/profile`).
 - Success shape: `{ success, message, data }`; errors: 500 `{ success, message, error }` forwarding `DatabaseError.message` and otherwise `"Internal Server Error!"`. `error` is the raw thrown value and JSON-serializes to `{}` for `Error` instances.
-- Status quirks: create returns 201, update returns 201 (not 200), delete returns 200 with no `data`, and get-by-id returns 200 even when no row exists (its `data` key is then omitted from the JSON).
+- Status quirks: create returns 201, update returns 201 (not 200), delete returns 200 with no `data`, and get-by-id returns 200 even when no row exists (its `data` key is then omitted from the JSON). Profile creation returns 201, or 404 `{ success: false, message: "User not exists!" }` when the user is missing.
 - Create uses only `name, age, email, password` and ignores `is_active`; update changes only `name, age, password, is_active` (email is not updatable).
 - Known double-response bug: `getUsers` sends 404 when the list is empty and then unconditionally sends 200; `deleteUserById` does the same when no row matches. Express logs "headers already sent" and keeps the 404. If touching either handler, add `return`s instead of copying the pattern.
-- Keep SQL parameterized (`$1`, `$2`, ...); nothing interpolates request data.
+- Keep SQL parameterized (`$1`, `$2`, ...) and confined to `<domain>.repository.ts`; nothing interpolates request data.
 
 ## TypeScript quirks
 - `verbatimModuleSyntax` is on: type-only imports must use `import type` (e.g. `Request`, `Response`, `Router`).
