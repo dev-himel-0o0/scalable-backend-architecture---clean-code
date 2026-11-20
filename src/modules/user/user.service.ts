@@ -3,13 +3,17 @@ import type { IUser } from "./user.interface";
 
 const createUser = async (payload: IUser) => {
   const { name, age, email, password } = payload;
-  const result = await pool.query(
+  return await pool.query(
     `
-        INSERT INTO users (name, age, email,  password) VALUES ($1, $2, $3, $4) RETURNING *
-      `,
+      INSERT INTO users (
+        name,
+        age,
+        email,
+        password
+      ) VALUES ($1, $2, $3, $4) RETURNING *
+    `,
     [name, age, email, password],
   );
-  return result;
 };
 
 const getUsers = async () => await pool.query(`SELECT * FROM users`);
