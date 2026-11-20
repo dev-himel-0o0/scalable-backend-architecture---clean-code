@@ -4,7 +4,7 @@ const createProfile = async (payload: any) => {
   const { user_id, bio, address, phone, gender } = payload;
   const user = await pool.query(`SELECT * FROM users WHERE id=$1`, [user_id]);
 
-  if (!user.rowCount) null;
+  if (!user.rowCount) return null;
 
   return await pool.query(
     `

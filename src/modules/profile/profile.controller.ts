@@ -6,6 +6,14 @@ const createProfile = async (req: Request, res: Response) => {
   try {
     const result = await profileService.createProfile(req.body);
 
+    if (!result) {
+      res.status(404).json({
+        success: false,
+        message: "User not exists!",
+      });
+      return;
+    }
+
     res.status(201).json({
       success: true,
       message: "Profile created successfully!",
