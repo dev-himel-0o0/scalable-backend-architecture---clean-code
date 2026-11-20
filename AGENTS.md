@@ -6,6 +6,12 @@
 - Repositories are the only layer that imports the shared `pool`; services call repositories. No tests, lint, formatter, build script, CI, or Docker.
 - Cross-module code lives only in `src/config` and `src/db`; modules do not import each other. There are no path aliases or barrel files.
 
+## Agent tooling
+- Only `AGENTS.md` is committed. The rest of the agent setup is machine-local and gitignored: `.agents/skills/` (seven vendored Neon skills), `skills-lock.json`, and `opencode.jsonc` (Neon MCP server at `https://mcp.neon.tech/mcp`). Never stage them, even with `git add -f`.
+- The skills are third-party Neon reference docs, not this codebase: do not edit them by hand, do not import from them, and do not copy their example snippets as repo conventions.
+- Reinstall or refresh with `neon skills -y` (this directory) or `neon skills -y --global` (`~/.agents/skills`); check with `neon skills status`, update with `neon skills update -y`. A GitHub rate-limit warning from the update check is non-fatal; set `GITHUB_TOKEN` to raise the limit.
+- The app does not depend on any of this: `npm run dev` and `npx tsc --noEmit` are still the only commands that matter.
+
 ## Commands
 - `npm run dev` — `tsx watch --env-file=.env ./src/server.ts`.
 - `npx tsc --noEmit` — the only automated check (TypeScript 7.0.2). Without `--noEmit` it emits to `dist/`.
