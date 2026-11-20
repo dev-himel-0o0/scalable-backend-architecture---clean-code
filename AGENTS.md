@@ -9,7 +9,7 @@
 ## Agent tooling
 - Only `AGENTS.md` is committed. The rest of the agent setup is machine-local and gitignored: `.agents/skills/` (seven vendored Neon skills), `skills-lock.json`, and `opencode.jsonc` (Neon MCP server at `https://mcp.neon.tech/mcp`). Never stage them, even with `git add -f`.
 - The skills are third-party Neon reference docs, not this codebase: do not edit them by hand, do not import from them, and do not copy their example snippets as repo conventions.
-- Reinstall or refresh with `neon skills -y` (this directory) or `neon skills -y --global` (`~/.agents/skills`); check with `neon skills status`, update with `neon skills update -y`. A GitHub rate-limit warning from the update check is non-fatal; set `GITHUB_TOKEN` to raise the limit.
+- Reinstall or refresh with `neon skills -y` from the repo root; check with `neon skills status`, update with `neon skills update -y`. Keep this setup project-local (do not use `--global`). The project-scope status check can print `outdated` even when the content matches upstream; `neon skills -y` reinstall is authoritative. A GitHub rate-limit warning from the update check is non-fatal; set `GITHUB_TOKEN` to raise the limit.
 - The app does not depend on any of this: `npm run dev` and `npx tsc --noEmit` are still the only commands that matter.
 
 ## Commands
