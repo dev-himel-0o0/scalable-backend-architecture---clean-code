@@ -1,7 +1,12 @@
+import bcrypt from "bcrypt";
 import type { IUser } from "./user.interface";
 import { userRepository } from "./user.repository";
 
-const createUser = async (payload: IUser) => await userRepository.create(payload);
+const createUser = async (payload: IUser) => {
+  const { password } = payload;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  return await userRepository.create({ ...payload, password: hashedPassword });
+};
 
 const getUsers = async () => await userRepository.findAll();
 
