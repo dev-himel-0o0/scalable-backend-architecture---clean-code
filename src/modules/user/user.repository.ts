@@ -3,7 +3,7 @@ import type { IUser } from "./user.interface";
 
 const create = async (payload: IUser) => {
   const { name, age, email, password } = payload;
-  return await pool.query(
+  const result = await pool.query(
     `
       INSERT INTO users (
         name,
@@ -14,6 +14,9 @@ const create = async (payload: IUser) => {
     `,
     [name, age, email, password],
   );
+
+  delete result.rows[0].password;
+  return result;
 };
 
 const findAll = async () => await pool.query(`SELECT * FROM users`);
