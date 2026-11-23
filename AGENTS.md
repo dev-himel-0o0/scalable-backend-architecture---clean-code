@@ -2,7 +2,7 @@
 
 ## Repo shape
 - Single-package ESM Express 5 + TypeScript API using a feature-module (modular monolith) layout. `src/server.ts` is the entry point, `src/app.ts` wires middleware and mounts routers, config is in `src/config`, and the shared `pg` pool is in `src/db`.
-- Each domain lives in `src/modules/<domain>/` as `<domain>.route.ts` (URL → handler), `<domain>.controller.ts` (HTTP + envelopes), `<domain>.service.ts` (business logic), `<domain>.repository.ts` (SQL), and `<domain>.interface.ts` (payload types). The `user` and `profile` modules exist.
+- Each domain lives in `src/modules/<domain>/` as `<domain>.route.ts` (URL → handler), `<domain>.controller.ts` (HTTP + envelopes), `<domain>.service.ts` (business logic), `<domain>.repository.ts` (SQL), and `<domain>.interface.ts` (payload types). The `user`, `profile`, and `auth` modules exist.
 - Repositories are the only layer that imports the shared `pool`; services call repositories. No tests, lint, formatter, build script, CI, or Docker.
 - Cross-module code lives only in `src/config` and `src/db`; modules do not import each other. There are no path aliases or barrel files.
 
@@ -19,7 +19,7 @@
 
 ## Environment
 - `.env` is gitignored and holds real credentials; copy `.env.example` to create it.
-- `src/config/index.ts` reads `PORT`, `API_VERSION`, and `DATABASE_URL`; `DATABASE_URL_POOLED` exists in env files but is unused. `API_VERSION` is the path prefix without a leading slash (e.g. `api/v1`); `app.ts` adds the slash. Config is a default-exported object with no runtime validation, so values may be `undefined`.
+- `src/config/index.ts` reads `PORT`, `API_VERSION`, `DATABASE_URL`, and `JWT_SECRET`; `DATABASE_URL_POOLED` exists in env files but is unused. `API_VERSION` is the path prefix without a leading slash (e.g. `api/v1`); `app.ts` adds the slash. Config is a default-exported object; only `JWT_SECRET` is validated, so a missing value throws at startup and the other values may be `undefined`.
 - Env is loaded via dotenv from `process.cwd()/.env` at import time: run from the repo root and restart `npm run dev` after editing `.env`.
 - A missing/unreachable DB is non-fatal: startup logs the failure and HTTP still serves.
 
