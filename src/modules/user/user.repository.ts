@@ -2,17 +2,18 @@ import { pool } from "../../db";
 import type { IUser } from "./user.interface";
 
 const create = async (payload: IUser) => {
-  const { name, age, email, password } = payload;
+  const { name, age, email, password, role } = payload;
   const result = await pool.query(
     `
       INSERT INTO users (
         name,
         age,
         email,
-        password
-      ) VALUES ($1, $2, $3, $4) RETURNING *
+        password,
+        role
+      ) VALUES ($1, $2, $3, $4, COALESCE($5, 'user')) RETURNING *
     `,
-    [name, age, email, password],
+    [name, age, email, password, role],
   );
 
   delete result.rows[0].password;
@@ -25,18 +26,26 @@ const findById = async (id: string) =>
   await pool.query(`SELECT * FROM users WHERE id=$1`, [id]);
 
 const update = async (id: string, payload: IUser) => {
-  const { name, age, password, is_active } = payload;
+  const { name, age, password, role, is_active } = payload;
   return await pool.query(
     `
       UPDATE users SET
       name = COALESCE($1, name),
       age = COALESCE($2, age),
       password = COALESCE($3, password),
-      is_active = COALESCE($4, is_active),
+      role = COALESCE($4, role),
+      is_active = COALESCE($5, is_active),
       updated_at = NOW()
-      WHERE id=$5 RETURNING *
+      WHERE id=$6 RETURNING *
     `,
-    [name ?? null, age ?? null, password ?? null, is_active ?? null, id],
+    [
+      name ?? null,
+      age ?? null,
+      password ?? null,
+      role ?? null,
+      is_active ?? null,
+      id,
+    ],
   );
 };
 

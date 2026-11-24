@@ -16,19 +16,18 @@ const logInUser = async (payload: IAuth) => {
 
   if (!user.is_active) throw new Error("User deactivate!");
 
-  const { password: _password, ...safeUser } = user;
-
   const jwtPayload: IJwtPayload = {
-    id: safeUser.id,
-    name: safeUser.name,
-    email: safeUser.email,
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
   };
 
   const accessToken = jwt.sign(jwtPayload, config.jwtSecret, {
     expiresIn: "1d",
   });
 
-  return { accessToken, user: safeUser };
+  return { accessToken, user };
 };
 
 const getAuths = async () => {};

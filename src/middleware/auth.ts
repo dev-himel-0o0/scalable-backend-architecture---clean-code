@@ -3,37 +3,41 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
 import config from "../config";
 import { pool } from "../db";
 
-const authToken = async (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization;
-  const decodeToken = jwt.verify(
-    token as string,
-    config.jwtSecret,
-  ) as JwtPayload;
-  const userExists = await pool.query(`SELECT * FROM users WHERE email=$1`, [
-    decodeToken.email,
-  ]);
+const authToken =
+  (...roles: string[]) =>
+  async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.headers.authorization;
+    const decodeToken = jwt.verify(
+      token as string,
+      config.jwtSecret,
+    ) as JwtPayload;
+    const userExists = await pool.query(`SELECT * FROM users WHERE email=$1`, [
+      decodeToken.email,
+    ]);
 
-  if (!token)
-    res.status(401).json({
-      success: false,
-      message: "Unauthorized access!",
-    });
+    console.log({ decodeToken, roles });
 
-  if (!userExists.rowCount)
-    res.status(404).json({
-      success: false,
-      message: "User not found!",
-    });
+    if (!token)
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized access!",
+      });
 
-  if (!userExists.rows[0].is_active)
-    res.status(403).json({
-      success: false,
-      message: "Forbidden access!",
-    });
+    if (!userExists.rowCount)
+      res.status(404).json({
+        success: false,
+        message: "User not found!",
+      });
 
-  req.user = decodeToken;
+    if (!userExists.rows[0].is_active)
+      res.status(403).json({
+        success: false,
+        message: "Forbidden access!",
+      });
 
-  next();
-};
+    req.user = decodeToken;
+
+    next();
+  };
 
 export default authToken;
