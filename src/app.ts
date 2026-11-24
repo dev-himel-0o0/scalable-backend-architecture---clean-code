@@ -1,7 +1,7 @@
-import type { Express, NextFunction, Request, Response } from "express";
+import type { Express, Request, Response } from "express";
 import express from "express";
-import fs from "fs";
 import config from "./config";
+import logger from "./middleware/logger";
 import { authRouter } from "./modules/auth/auth.route";
 import { profileRoute } from "./modules/profile/profile.route";
 import { userRoute } from "./modules/user/user.route";
@@ -10,12 +10,7 @@ const app: Express = express();
 
 app.use(express.json());
 app.use(express.urlencoded());
-
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const log = `Method: ${req.method} | URL: ${req.url} | Time: ${Date.now()}\n`;
-  fs.appendFile("logger.txt", log, (error) => console.log(error));
-  next();
-});
+app.use(logger);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Home");
