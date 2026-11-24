@@ -31,6 +31,8 @@ const authToken = async (req: Request, res: Response, next: NextFunction) => {
       message: "Forbidden access!",
     });
 
+  req.user = decodeToken;
+
   next();
 };
 
