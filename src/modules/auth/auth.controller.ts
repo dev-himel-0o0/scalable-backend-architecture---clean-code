@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { DatabaseError } from "pg";
+import customResponse from "../../utils/custom-response";
 import { authService } from "./auth.service";
 
 const logInUser = async (req: Request, res: Response) => {
@@ -15,18 +16,18 @@ const logInUser = async (req: Request, res: Response) => {
       domain: "localhost",
     });
 
-    res.status(201).json({
+    customResponse(res, {
+      statusCode: 200,
       success: true,
       message: "User logged in successfully!",
       data: result,
     });
   } catch (error: unknown) {
-    res.status(500).json({
+    customResponse(res, {
+      statusCode: 500,
       success: false,
       message:
-        error instanceof DatabaseError
-          ? error.message
-          : "Internal Server Error!",
+        error instanceof Error ? error.message : "Internal Server Error!",
       error: error,
     });
   }
