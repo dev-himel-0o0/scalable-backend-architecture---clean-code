@@ -11,6 +11,7 @@ const config = {
   apiVersion: process.env.API_VERSION,
   connectionString: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET as string,
+  refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET as string,
 };
 
 export default config;

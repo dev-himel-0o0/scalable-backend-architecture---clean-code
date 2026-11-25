@@ -81,6 +81,10 @@ The API is available at **http://localhost:3000**.
 | `API_VERSION`         | Yes      | API path prefix without a leading slash, e.g. `api/v1`           |
 | `DATABASE_URL`        | Yes      | PostgreSQL connection string used by the app                     |
 | `DATABASE_URL_POOLED` | No       | Reserved for a pooled connection string; not read by the app yet |
+| `JWT_SECRET`          | Yes      | Secret used to sign access tokens                                 |
+| `REFRESH_TOKEN_SECRET` | Yes      | Separate secret used to sign refresh tokens                       |
+
+Generate each authentication secret with `openssl rand -hex 32`. Keep the two secrets different.
 
 ## API Endpoints
 
