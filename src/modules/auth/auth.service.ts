@@ -24,7 +24,7 @@ const logInUser = async (payload: IAuth) => {
   };
 
   const accessToken = jwt.sign(jwtPayload, config.jwtSecret, {
-    expiresIn: "1d",
+    expiresIn: "300000",
   });
 
   return { accessToken, user };
