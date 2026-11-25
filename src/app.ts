@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
 import config from "./config";
+import globalErrorHandler from "./middleware/global-error-handler";
 import logger from "./middleware/logger";
 import { authRouter } from "./modules/auth/auth.route";
 import { profileRoute } from "./modules/profile/profile.route";
@@ -19,5 +20,7 @@ app.get("/", (req: Request, res: Response) => {
 app.use(`/${config.apiVersion}/user`, userRoute);
 app.use(`/${config.apiVersion}/profile`, profileRoute);
 app.use(`/${config.apiVersion}/auth`, authRouter);
+
+app.use(globalErrorHandler);
 
 export default app;
