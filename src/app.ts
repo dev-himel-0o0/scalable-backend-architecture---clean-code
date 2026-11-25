@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import type { Express, Request, Response } from "express";
 import express from "express";
@@ -9,12 +10,14 @@ import { profileRoute } from "./modules/profile/profile.route";
 import { userRoute } from "./modules/user/user.route";
 
 const app: Express = express();
+
 const corsOptions = {
   origin: [config.clientUrlDev],
   optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded());
 app.use(logger);

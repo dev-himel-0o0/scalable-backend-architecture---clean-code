@@ -32,6 +32,29 @@ const logInUser = async (req: Request, res: Response) => {
   }
 };
 
+const generateToken = async (req: Request, res: Response) => {
+  try {
+    const result = await authService.generateAccessToken(
+      req.cookies.refreshToken,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Access token generated successfully!",
+      data: result,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      message:
+        error instanceof DatabaseError
+          ? error.message
+          : "Internal Server Error!",
+      error: error,
+    });
+  }
+};
+
 const getAuths = async (req: Request, res: Response) => {};
 
 const getAuthById = async (req: Request, res: Response) => {};
@@ -42,6 +65,7 @@ const deleteAuth = async (req: Request, res: Response) => {};
 
 export const authController = {
   logInUser,
+  generateToken,
   getAuths,
   getAuthById,
   updateAuth,

@@ -9,10 +9,12 @@ const authToken =
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const token = req.headers.authorization;
+
       const decodeToken = jwt.verify(
         token as string,
         config.jwtSecret,
       ) as JwtPayload;
+
       const userExists = await pool.query(
         `SELECT * FROM users WHERE email=$1`,
         [decodeToken.email],
