@@ -36,6 +36,8 @@ HTTP request
 
 - **`src/server.ts`** — process entry point. Starts the database bootstrap and the HTTP listener.
 - **`src/app.ts`** — builds the Express app, registers middleware, and mounts feature routers. It knows nothing about SQL.
+- **`src/middleware/global-error-handler.ts`** — maps application, authentication, and database failures to safe HTTP responses and logs server-side diagnostics.
+- **`src/utils/custom-response.ts`** — shared success response envelope used by controllers.
 - **`src/config/index.ts`** — loads `.env` and exposes the typed config object.
 - **`src/db/index.ts`** — creates the shared `pg` `Pool` and defines `initNeonDB()`, which creates the `users` and `profile` tables at startup.
 - **`src/modules/user/`** — the user feature. Routes wire URLs to controllers, controllers own HTTP concerns, the service owns business logic, the repository owns queries, and the interface holds payload types.
@@ -119,7 +121,6 @@ curl -X POST http://localhost:3000/api/v1/user \
     "name": "Jane Doe",
     "age": 28,
     "email": "jane@example.com",
-    "password": "secret",
     "is_active": true,
     "created_at": "2026-01-01T00:00:00.000Z",
     "updated_at": "2026-01-01T00:00:00.000Z"
@@ -132,12 +133,14 @@ Errors follow the same envelope:
 ```json
 {
   "success": false,
-  "message": "Internal Server Error!",
-  "error": {}
+  "message": "An unexpected error occurred.",
+  "error": {
+    "code": "INTERNAL_SERVER_ERROR"
+  }
 }
 ```
 
-The `error` field carries the thrown error. Native `Error` and `DatabaseError` instances JSON-serialize to `{}`, so check the server logs for details.
+Error responses include a stable public `error.code`; database messages, stack traces, and other internal diagnostics are written to server logs and are not returned to clients. Known PostgreSQL constraint errors map to safe client-facing statuses/messages; unexpected database or server failures return a generic 500 response. The database schema bootstrap completes before the HTTP server starts, and startup fails if the database is unavailable.
 
 ## Project Structure
 
@@ -178,15 +181,16 @@ Each domain is self-contained. Cross-module code lives only in `config` and `db`
 
 - [x] Split the server into app wiring, routes, controllers, and services
 - [x] Extract SQL from services into a repository layer
-- [ ] Add request validation and centralized error handling
-- [ ] Fix handlers that send a 404 and then a second response
-- [ ] Hash passwords before storing them
+- [ ] Add request validation
+- [x] Add centralized error handling
+- [x] Fix handlers that send a 404 and then a second response
+- [x] Hash passwords before storing them
 - [ ] Add migrations instead of startup-created schema
 - [ ] Add automated tests
 - [ ] Add authentication and authorization
 - [ ] Add pagination and filtering
 
-> **Note:** This is a learning project, not production-ready software. In particular, passwords are currently stored in plain text.
+> **Note:** This is a learning project, not production-ready software. Request validation, migrations, and automated tests are not yet configured.
 
 ## License
 

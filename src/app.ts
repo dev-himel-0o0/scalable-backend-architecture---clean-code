@@ -5,6 +5,7 @@ import express from "express";
 import config from "./config";
 import globalErrorHandler from "./middleware/global-error-handler";
 import logger from "./middleware/logger";
+import notFoundHandler from "./middleware/not-found-handler";
 import { authRouter } from "./modules/auth/auth.route";
 import { profileRoute } from "./modules/profile/profile.route";
 import { userRoute } from "./modules/user/user.route";
@@ -30,6 +31,7 @@ app.use(`/${config.apiVersion}/user`, userRoute);
 app.use(`/${config.apiVersion}/profile`, profileRoute);
 app.use(`/${config.apiVersion}/auth`, authRouter);
 
+app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
 export default app;

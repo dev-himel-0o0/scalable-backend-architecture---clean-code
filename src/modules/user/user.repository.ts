@@ -11,19 +11,25 @@ const create = async (payload: IUser) => {
         email,
         password,
         role
-      ) VALUES ($1, $2, $3, $4, COALESCE($5, 'user')) RETURNING *
+      ) VALUES ($1, $2, $3, $4, COALESCE($5, 'user'))
+      RETURNING id, name, age, email, role, is_active, created_at, updated_at
     `,
     [name, age, email, password, role],
   );
 
-  delete result.rows[0].password;
   return result;
 };
 
-const findAll = async () => await pool.query(`SELECT * FROM users`);
+const findAll = async () =>
+  await pool.query(
+    `SELECT id, name, age, email, role, is_active, created_at, updated_at FROM users`,
+  );
 
 const findById = async (id: string) =>
-  await pool.query(`SELECT * FROM users WHERE id=$1`, [id]);
+  await pool.query(
+    `SELECT id, name, age, email, role, is_active, created_at, updated_at FROM users WHERE id=$1`,
+    [id],
+  );
 
 const update = async (id: string, payload: IUser) => {
   const { name, age, password, role, is_active } = payload;
@@ -36,7 +42,8 @@ const update = async (id: string, payload: IUser) => {
       role = COALESCE($4, role),
       is_active = COALESCE($5, is_active),
       updated_at = NOW()
-      WHERE id=$6 RETURNING *
+      WHERE id=$6
+      RETURNING id, name, age, email, role, is_active, created_at, updated_at
     `,
     [
       name ?? null,

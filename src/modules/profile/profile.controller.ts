@@ -1,34 +1,20 @@
 import type { Request, Response } from "express";
-import { DatabaseError } from "pg";
+import { AppError } from "../../utils/app-error";
+import customResponse from "../../utils/custom-response";
 import { profileService } from "./profile.service";
 
 const createProfile = async (req: Request, res: Response) => {
-  try {
-    const result = await profileService.createProfile(req.body);
+  const result = await profileService.createProfile(req.body);
 
-    if (!result) {
-      res.status(404).json({
-        success: false,
-        message: "User not exists!",
-      });
-      return;
-    }
-
-    res.status(201).json({
-      success: true,
-      message: "Profile created successfully!",
-      data: result.rows[0],
-    });
-  } catch (error: unknown) {
-    res.status(500).json({
-      success: false,
-      message:
-        error instanceof DatabaseError
-          ? error.message
-          : "Internal Server Error!",
-      error: error,
-    });
+  if (!result) {
+    throw new AppError(404, "USER_NOT_FOUND", "User not exists!");
   }
+
+  return customResponse(res, {
+    statusCode: 201,
+    message: "Profile created successfully!",
+    data: result.rows[0],
+  });
 };
 
 export const profileController = { createProfile };

@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import config from "../../config";
 import { pool } from "../../db";
+import { AppError } from "../../utils/app-error";
 import type { IAuth, IJwtPayload } from "./auth.interface";
 import { authRepository } from "./auth.repository";
 
@@ -10,12 +11,22 @@ const logInUser = async (payload: IAuth) => {
   const result = await authRepository.findByEmail(email);
   const user = result.rows[0];
 
-  if (!user) throw new Error("Invalid credentials!");
+  if (!user) {
+    throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials!");
+  }
 
   const matchPassword = await bcrypt.compare(password, user.password);
 
-  if (!matchPassword) throw new Error("Invalid credentials!");
-  if (!user.is_active) throw new Error("User deactivate!");
+  if (!matchPassword) {
+    throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials!");
+  }
+  if (!user.is_active) {
+    throw new AppError(
+      403,
+      "USER_INACTIVE",
+      "This user account is inactive.",
+    );
+  }
 
   const jwtPayload: IJwtPayload = {
     id: user.id,
@@ -32,10 +43,16 @@ const logInUser = async (payload: IAuth) => {
     expiresIn: "1d",
   });
 
-  return { accessToken, refreshToken, user };
+  const { password: _password, ...publicUser } = user;
+
+  return { accessToken, refreshToken, user: publicUser };
 };
 
 const generateAccessToken = async (token: string) => {
+  if (!token) {
+    throw new AppError(401, "UNAUTHORIZED", "Unauthorized access!");
+  }
+
   const decodeToken = jwt.verify(
     token,
     config.refreshTokenSecret,
@@ -44,16 +61,24 @@ const generateAccessToken = async (token: string) => {
   const userExists = await pool.query(`SELECT * FROM users WHERE email=$1`, [
     decodeToken.email,
   ]);
+  const user = userExists.rows[0];
 
-  if (!token) throw new Error("Unauthorized access!");
-  if (!userExists.rowCount) throw new Error("User not found!");
-  if (!userExists.rows[0].is_active) throw new Error("Forbidden access!");
+  if (!user) {
+    throw new AppError(401, "UNAUTHORIZED", "Unauthorized access!");
+  }
+  if (!user.is_active) {
+    throw new AppError(
+      403,
+      "USER_INACTIVE",
+      "This user account is inactive.",
+    );
+  }
 
   const jwtPayload: IJwtPayload = {
-    id: userExists.rows[0].id,
-    name: userExists.rows[0].name,
-    email: userExists.rows[0].email,
-    role: userExists.rows[0].role,
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
   };
 
   const accessToken = jwt.sign(jwtPayload, config.jwtSecret, {
