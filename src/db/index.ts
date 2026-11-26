@@ -6,8 +6,7 @@ export const pool = new Pool({
 });
 
 export const initNeonDB = async () => {
-  try {
-    await pool.query(`
+  await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255),
@@ -21,7 +20,7 @@ export const initNeonDB = async () => {
       );
     `);
 
-    await pool.query(`
+  await pool.query(`
       CREATE TABLE IF NOT EXISTS profile (
         id SERIAL PRIMARY KEY,
         user_id INT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -33,8 +32,6 @@ export const initNeonDB = async () => {
         updated_at TIMESTAMP DEFAULT NOW()
       )
     `);
-    console.log("Database connected!");
-  } catch (error) {
-    console.error(`Database ${error}`);
-  }
+
+  console.log("Database connected!");
 };

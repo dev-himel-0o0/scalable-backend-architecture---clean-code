@@ -3,53 +3,37 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
 import config from "../config";
 import { pool } from "../db";
 import type { TRole } from "../types";
+import { AppError } from "../utils/app-error";
 
 const authToken =
   (...roles: TRole[]) =>
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const token = req.headers.authorization;
+  async (req: Request, _res: Response, next: NextFunction) => {
+    const token = req.headers.authorization;
 
-      const decodeToken = jwt.verify(
-        token as string,
-        config.jwtSecret,
-      ) as JwtPayload;
+    if (!token)
+      throw new AppError(401, "UNAUTHORIZED", "Unauthorized access!");
 
-      const userExists = await pool.query(
-        `SELECT * FROM users WHERE email=$1`,
-        [decodeToken.email],
+    const decodeToken = jwt.verify(token, config.jwtSecret) as JwtPayload;
+
+    const userExists = await pool.query(
+      `SELECT * FROM users WHERE email=$1`,
+      [decodeToken.email],
+    );
+    const user = userExists.rows[0];
+
+    if (!user)
+      throw new AppError(401, "UNAUTHORIZED", "Unauthorized access!");
+    if (!user.is_active)
+      throw new AppError(
+        403,
+        "USER_INACTIVE",
+        "This user account is inactive.",
       );
+    if (roles.length && !roles.includes(user.role))
+      throw new AppError(403, "FORBIDDEN", "Forbidden access!");
 
-      if (!token)
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized access!",
-        });
-
-      if (!userExists.rowCount)
-        return res.status(404).json({
-          success: false,
-          message: "User not found!",
-        });
-
-      if (!userExists.rows[0].is_active)
-        return res.status(403).json({
-          success: false,
-          message: "Forbidden access!",
-        });
-
-      if (roles.length && !roles.includes(userExists.rows[0].role))
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized access!",
-        });
-
-      req.user = decodeToken;
-
-      next();
-    } catch (error) {
-      next(error);
-    }
+    req.user = decodeToken;
+    next();
   };
 
 export default authToken;
